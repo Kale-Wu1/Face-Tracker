@@ -26,35 +26,52 @@ def getNoseCoords():
 mp_drawing = mp.solutions.drawing_utils
 mp_pose = mp.solutions.pose
 
-ip_cam = "http://10.0.0.194:8080/video"
+ip_cam = "http://10.0.0.194:8080/video" #IP cam has a lot of latency.
 cap = cv2.VideoCapture(ip_cam)
 
 if not cap.isOpened():
     print("Error - could not access camera")
 
+#Camera frame dimensions
+frameWidth = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+frameHeight = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+print(frameWidth, frameHeight)
 #Camera feed with pose model processing
 with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence=0.8) as pose:
     while True:
         ret, frame = cap.read()
 
         #Frame processing
-        image = cv2.flip(frame, 1)
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         image.flags.writeable = False
         results = pose.process(image)
         image.flags.writeable = True
         image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
 
-        
-        frame.flags.writable = True
-
-
-        # Press 'q' to exit the video stream
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
-
+        #Draw lines
+        cv2.line(img=frame, pt1=(int(frameWidth/2), 0), pt2=(int(frameWidth/2), frameHeight), color=(255, 255, 255), thickness=1, lineType=8, shift=0)
+        cv2.line(img=frame, pt1=(0, int(frameHeight/2)), pt2=(frameWidth, int(frameHeight/2)), color=(255, 255, 255), thickness=1, lineType=8, shift=0)
         try:
             landmarks = results.pose_landmarks.landmark
+            coords = getNoseCoords()
+            print(f"Nose at {coords[0]}, {coords[1]}.")
+            
+            #Targeting
+            if(coords[0] <= 0.4):
+                print("LEFT")
+            elif(coords[0] >= 0.6):
+                print("RIGHT")
+            else:
+                print("X CENTERED")
+
+            if(coords[1] <= 0.4):
+                print("UP")
+            elif(coords[1] >= 0.6):
+                print("DOWN")
+            else:
+                print("Y CENTERED")
+            
+            
         except:
             print("No face detected")
             pass
@@ -63,6 +80,10 @@ with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence=0.8) as 
 
         # Display frame
         cv2.imshow('IP Camera Stream', frame)
+        
+        # Press 'q' to exit the video stream
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
 
     
 
