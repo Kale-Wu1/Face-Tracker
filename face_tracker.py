@@ -19,6 +19,9 @@ arduino = serial.Serial(port="COM9", baudrate=9600, timeout=.1)
 def serialWrite(data):
     arduino.write(bytes(data + "\n", "utf-8"))
 
+def getNoseCoords():
+    return [landmarks[mp_pose.PoseLandmark.NOSE.value].x, landmarks[mp_pose.PoseLandmark.NOSE.value].y]
+
 #Vision model initialisation
 mp_drawing = mp.solutions.drawing_utils
 mp_pose = mp.solutions.pose
@@ -34,14 +37,32 @@ with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence=0.8) as 
     while True:
         ret, frame = cap.read()
 
-        # Display the resulting frame
-        cv2.imshow('IP Camera Stream', frame)
+        #Frame processing
+        image = cv2.flip(frame, 1)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        image.flags.writeable = False
+        results = pose.process(image)
+        image.flags.writeable = True
+        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
 
-        results = pose.process(frame)
+        
+        frame.flags.writable = True
+
 
         # Press 'q' to exit the video stream
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
+
+        try:
+            landmarks = results.pose_landmarks.landmark
+        except:
+            print("No face detected")
+            pass
+
+        mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
+
+        # Display frame
+        cv2.imshow('IP Camera Stream', frame)
 
     
 
