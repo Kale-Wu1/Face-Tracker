@@ -24,7 +24,7 @@ def getNoseCoords():
 
 #Thread for serial comms
 def serialThreadHandler(coordQueue):
-    while True:
+    while threadOpen:
         if not coordQueue.empty():
             coords = coordQueue.get()
             arduino.write(bytes(f"{coords[0]} {coords[1]}" + "\n", "utf-8"))
@@ -33,6 +33,7 @@ def serialThreadHandler(coordQueue):
 #Serial comm thread initialisation
 coordQueue = Queue()
 serialThread = threading.Thread(target=serialThreadHandler, args=(coordQueue,))
+threadOpen = True
 serialThread.start()
 
 
@@ -72,7 +73,7 @@ with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence=0.8) as 
             landmarks = results.pose_landmarks.landmark
             coords = getNoseCoords()
             coordQueue.put(coords)
-            print(f"{coords[0], 3} {coords[1], 3}")
+            print(f"{coords[0]} {coords[1]}")
             
         except:
             coordQueue.put([0.5, 0.5])
@@ -92,3 +93,4 @@ with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence=0.8) as 
 #Release the capture
 cap.release()
 cv2.destroyAllWindows()
+threadOpen = False

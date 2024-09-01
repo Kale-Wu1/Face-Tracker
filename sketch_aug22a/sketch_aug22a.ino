@@ -1,4 +1,3 @@
-//Face tracker turret motor control
 #include <AccelStepper.h>
 #include <MultiStepper.h>
 
@@ -6,15 +5,16 @@ String inputString = "";
 bool strComplete = false;
 
 //Video input height
-int FRAME_WIDTH;
-int FRAME_HEIGHT;
+const int FRAME_WIDTH;
+const int FRAME_HEIGHT = 480;
 
-double targetX = 0;
-double targetY = 0;
+int posX = 0;
+int posY = 0;
 
 //Stepper Motor Control
 MultiStepper control;
 AccelStepper yAxis(1, 3, 2);
+
 
 int MAX_SPEED = 300;
 
@@ -25,12 +25,8 @@ void setup() {
 
   //Stepper config
   yAxis.setMaxSpeed(MAX_SPEED);
+  xAxis.setMaxSpeed(MAX_SPEED);
 
-  //Test LEDs
-  pinMode(6, OUTPUT); //Left
-  pinMode(7, OUTPUT); //Right
-  pinMode(8, OUTPUT); //XCorrect
-  pinMode(13, OUTPUT); //On Target
 
 }
 
@@ -51,52 +47,14 @@ void serialEvent() {
     if (inChar == '\n') {
       strComplete = true;
 
-      //Serial.println("Received String: " + inputString);
-
       //Process string
-      targetX = inputString.substring(0, inputString.indexOf(' ')).toDouble();
-      targetY = inputString.substring(inputString.indexOf(' '), inputString.length()).toDouble();
-
-      //Serial.print("Converted to values: ");
-      //Serial.print(targetX);
-      //Serial.print(", ");
-      //Serial.println(targetY);
-
-      
-      //X Target LED
-      /*
-      if(targetX > 0.6) {
-        digitalWrite(6, LOW);
-        digitalWrite(7, HIGH);
-        digitalWrite(8, LOW);
-      } else if(targetX < 0.4) {
-        digitalWrite(6, HIGH);
-        digitalWrite(7, LOW);
-        digitalWrite(8, LOW);
-      } else {
-        digitalWrite(6, LOW);
-        digitalWrite(7, LOW);
-        digitalWrite(8, HIGH);
-      }
-      */
+      posX = inputString.substring(0, inputString.indexOf(' ')).toInt();
+      posY = inputString.substring(inputString.indexOf(' '), inputString.length()).toInt();
 
       //Y Target LED
-      if(targetY > 0.6) {
-        yAxis.setSpeed(MAX_SPEED);
-      } else if(targetY < 0.4) {
-        yAxis.setSpeed(-MAX_SPEED);
-      } else {
-        yAxis.setSpeed(0);
-      }
-      
-
-      //On target LED
-      //if(yAxis && digitalRead(5) == HIGH) {
-      //  digitalWrite(13, HIGH);
-      //} else {
-      //  digitalWrite(13, LOW);
-      //}
-
+      yAxis.setSpeed(calcSpeed(posY - FRAME_HEIGHT/2));
+      xAxis.setSpeed(calcSpeed(posX - FRAME_WIDTH/2));
+  
       clearInString();
 
     } else {
@@ -105,3 +63,12 @@ void serialEvent() {
   }
 }
 
+int calcSpeed(int error) {
+  //Movement tolerance threshold
+  if(abs(error) < 10) {
+    return 0;
+  } else {
+    return MAX_SPEED/175 * error;
+  }
+
+}
