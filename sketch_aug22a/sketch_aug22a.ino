@@ -5,7 +5,7 @@ String inputString = "";
 bool strComplete = false;
 
 //Video input height
-const int FRAME_WIDTH;
+const int FRAME_WIDTH = 640;
 const int FRAME_HEIGHT = 480;
 
 int posX = 0;
@@ -14,6 +14,7 @@ int posY = 0;
 //Stepper Motor Control
 MultiStepper control;
 AccelStepper yAxis(1, 3, 2);
+AccelStepper xAxis(1, 5, 4);
 
 
 int MAX_SPEED = 300;
@@ -27,11 +28,11 @@ void setup() {
   yAxis.setMaxSpeed(MAX_SPEED);
   xAxis.setMaxSpeed(MAX_SPEED);
 
-
 }
 
 void loop() {
   yAxis.runSpeed();
+  xAxis.runSpeed();
 }
 
 void clearInString() {
@@ -52,8 +53,8 @@ void serialEvent() {
       posY = inputString.substring(inputString.indexOf(' '), inputString.length()).toInt();
 
       //Y Target LED
-      yAxis.setSpeed(calcSpeed(posY - FRAME_HEIGHT/2));
-      xAxis.setSpeed(calcSpeed(posX - FRAME_WIDTH/2));
+      yAxis.setSpeed(calcSpeedY(posY - FRAME_HEIGHT/2));
+      xAxis.setSpeed(calcSpeedX(posX - FRAME_WIDTH/2));
   
       clearInString();
 
@@ -63,12 +64,20 @@ void serialEvent() {
   }
 }
 
-int calcSpeed(int error) {
+int calcSpeedY(int error) {
   //Movement tolerance threshold
   if(abs(error) < 10) {
     return 0;
   } else {
     return MAX_SPEED/175 * error;
   }
+}
 
+int calcSpeedX(int error) {
+  //Movement tolerance threshold
+  if(abs(error) < 10) {
+    return 0;
+  } else {
+    return -MAX_SPEED/175 * error;
+  }
 }
