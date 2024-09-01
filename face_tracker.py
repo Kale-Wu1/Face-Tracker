@@ -12,22 +12,37 @@ import mediapipe as mp
 import numpy as np
 import serial
 
+import threading
+import time
+from queue import Queue
+
 #Initialise arduino serial comms
 arduino = serial.Serial(port="COM9", baudrate=9600, timeout=.1)
 
-#Function for serial communication to arduino
-def serialWrite(data):
-    arduino.write(bytes(data + "\n", "utf-8"))
-
 def getNoseCoords():
-    return [landmarks[mp_pose.PoseLandmark.NOSE.value].x, landmarks[mp_pose.PoseLandmark.NOSE.value].y]
+    return [ int(landmarks[mp_pose.PoseLandmark.NOSE.value].x * frameWidth), int(landmarks[mp_pose.PoseLandmark.NOSE.value].y * frameHeight)]
+
+#Thread for serial comms
+def serialThreadHandler(coordQueue):
+    while True:
+        if not coordQueue.empty():
+            coords = coordQueue.get()
+            arduino.write(bytes(f"{coords[0]} {coords[1]}" + "\n", "utf-8"))
+        time.sleep(0.0001)
+
+#Serial comm thread initialisation
+coordQueue = Queue()
+serialThread = threading.Thread(target=serialThreadHandler, args=(coordQueue,))
+serialThread.start()
+
 
 #Vision model initialisation
 mp_drawing = mp.solutions.drawing_utils
 mp_pose = mp.solutions.pose
 
-ip_cam = "http://10.0.0.194:8080/video" #IP cam has a lot of latency.
-cap = cv2.VideoCapture(ip_cam)
+#ip_cam = "http://10.0.0.194:8080/video" #IP cam has a lot of latency.
+#cap = cv2.VideoCapture(ip_cam)
+cap = cv2.VideoCapture(1)
 
 if not cap.isOpened():
     print("Error - could not access camera")
@@ -36,6 +51,7 @@ if not cap.isOpened():
 frameWidth = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
 frameHeight = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 print(frameWidth, frameHeight)
+
 #Camera feed with pose model processing
 with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence=0.8) as pose:
     while True:
@@ -51,29 +67,15 @@ with mp_pose.Pose(min_detection_confidence=0.9, min_tracking_confidence=0.8) as 
         #Draw lines
         cv2.line(img=frame, pt1=(int(frameWidth/2), 0), pt2=(int(frameWidth/2), frameHeight), color=(255, 255, 255), thickness=1, lineType=8, shift=0)
         cv2.line(img=frame, pt1=(0, int(frameHeight/2)), pt2=(frameWidth, int(frameHeight/2)), color=(255, 255, 255), thickness=1, lineType=8, shift=0)
+
         try:
             landmarks = results.pose_landmarks.landmark
             coords = getNoseCoords()
-            print(f"Nose at {coords[0]}, {coords[1]}.")
-            
-            #Targeting
-            if(coords[0] <= 0.4):
-                print("LEFT")
-            elif(coords[0] >= 0.6):
-                print("RIGHT")
-            else:
-                print("X CENTERED")
-
-            if(coords[1] <= 0.4):
-                print("UP")
-            elif(coords[1] >= 0.6):
-                print("DOWN")
-            else:
-                print("Y CENTERED")
-            
+            coordQueue.put(coords)
+            print(f"{coords[0], 3} {coords[1], 3}")
             
         except:
-            print("No face detected")
+            coordQueue.put([0.5, 0.5])
             pass
 
         mp_drawing.draw_landmarks(frame, results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
